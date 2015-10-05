@@ -1,11 +1,9 @@
 class Aggregator
 	@@subscribers = Hash(String, Array(String ->)).new {|h, k| h[k] = [] of String -> }
-	# @@subscribers = Hash(String, Array(Proc(String))).new# {} of String => Array(Proc(String))
 	@@subscribers_all = Array(String, String ->).new
-	# @@responders = {} of String => Hash(String, Proc(String))
 	@@responders = Hash(String, (String ->)).new
-	# @@responders = Hash(String, String ->).new This does not work. why? #bug in crystal?
-	@@reroutes = {} of String => Proc(String)
+	#@@reroutes = {} of String => Proc(String)
+	@@reroutes = Hash(String, Array({String, String -> })).new {|h, k| h[k] = Array({String, String -> }).new }
 
 	def self.subscribe (message_type, &callback : String ->)
 		@@subscribers[message_type] << callback
@@ -20,20 +18,44 @@ class Aggregator
 		@@responders.delete(message_type) #if @@responders.has_key?(message_type) #I don't think we bother with checking even.
 	end
 	def self.publish (message_type, data)
+		# @@subscribers[message_type].each do |callback|
+		# 	ch = Channel(String).new
+		# 	spawn do
+		# 		callback.call(ch.receive)
+		# 	end
+		# 	ch.send(data)
+		# end
+		#pp "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+		# return
 		# @@subscribers_all.each &.call(message_type, data)
+		# puts "!!!!!!!!!!!!!!!!!!!!!!!"
+		# pp @@subscribers_all
 		@@subscribers_all.each do |callback|
+			ch = Channel(String).new
 			spawn do
+				message_type = ch.receive
+				data = ch.receive
 				callback.call(message_type, data)
 			end
+
+			ch.send(message_type)
+			ch.send(data)
 		end
-		if @@reroutes[message_type]
-			@@reroutes.each do |to_type, callback| 
-				if callback.class == Proc
-					Untangle.publish(to_type, callback.call(data))
-				else
-					Untangle.publish(to_type, data)
-				end
+		
+		@@subscribers[message_type].each do |callback|
+			#future { callback.call(data) }
+			ch = Channel(String).new
+			spawn do
+				callback.call(ch.receive)
 			end
+			ch.send(data)
+		end
+
+		@@reroutes[message_type].each do |tuple| #|to_type, callback| 
+			# puts "!!!!!!!!!!!!!!!!!!!"
+			# pp tuple
+			# puts "!!!!!!!!!!!!!!!!!!!"
+			Aggregator.publish(tuple[0], tuple[1].call(data))
 		end
 	end
 	def self.request(message_type, arguments)
@@ -51,6 +73,7 @@ class Aggregator
 		return @@responders[message_type].call(arguments) if @@responders[message_type]
 		return nil
 	end
+
 	def self.helpers
 		# struct String
 		# 	def subscribe (data)
@@ -91,10 +114,10 @@ class Aggregator
 		end
 	end
 	def self.reroute (from_type, to_type, &callback : String ->)
-		@@reroutes[from_type][to_type] = callback
+		@@reroutes[from_type] << {to_type, callback}
 	end
 	def self.un_reroute (from_type, to_type)
-		@@reroutes[from_type].delete(to_type) if @@reroutes[from_type]
+		@@reroutes[from_type].delete_if{|tuple| tuple[0] == to_type}
 	end
 	def self.resetAll (data)
 		if data == "HARD"
