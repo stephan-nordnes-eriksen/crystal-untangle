@@ -1,9 +1,9 @@
 class Aggregator
 	@@subscribers = Hash(String, Array(String ->)).new {|h, k| h[k] = [] of String -> }
-	@@subscribers_all = Array(String, String ->).new
+	@@subscribers_all = Array((String, String -> Void)).new
 	@@responders = Hash(String, (String ->)).new
 	#@@reroutes = {} of String => Proc(String)
-	@@reroutes = Hash(String, Array({String, String -> })).new {|h, k| h[k] = Array({String, String -> }).new }
+	@@reroutes = Hash(String, Array({String, (String -> String)})).new {|h, k| h[k] = Array({String, (String -> String)}).new }
 
 	def self.subscribe (message_type, &callback : String ->)
 		@@subscribers[message_type] << callback
@@ -17,7 +17,7 @@ class Aggregator
 	def self.unRespond (message_type, &callback : String ->)
 		@@responders.delete(message_type) #if @@responders.has_key?(message_type) #I don't think we bother with checking even.
 	end
-	def self.publish (message_type, data)
+	def self.publish (message_type : String, data : String)
 		# @@subscribers[message_type].each do |callback|
 		# 	ch = Channel(String).new
 		# 	spawn do
