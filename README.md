@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/stephan-nordnes-eriksen/crystal-untangle.svg?branch=master)](https://travis-ci.org/stephan-nordnes-eriksen/crystal-untangle)
+
 # untangle
 
 TODO: Write a description here
