@@ -1,5 +1,5 @@
 require "./spec_helper"
-
+require "./untangle/**"
 describe Untangle do
   # TODO: Write tests
 
